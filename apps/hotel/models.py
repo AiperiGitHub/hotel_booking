@@ -1,6 +1,9 @@
 from django.conf import settings
 from django.db import models
 
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
 from django.utils.translation import gettext_lazy as _
 
 
@@ -79,11 +82,19 @@ class Room(models.Model):
     )
     is_booked = models.BooleanField(
         _("Is Booked"),
-        default=False
+        default=False,
     )
 
     def __str__(self):
         return f"Room {self.room_number} at {self.room_type.name}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)  # Сохраняем объект Room
+
+        # Создаем объекты RoomPhotos при сохранении Room
+        if hasattr(self, 'room_photos'):
+            for image in self.room_photos:
+                RoomPhotos.objects.create(room=self, image=image)
 
     class Meta:
         verbose_name = _("Room")
@@ -185,3 +196,25 @@ class Review(models.Model):
     class Meta:
         verbose_name = _('Review')
         verbose_name_plural = _('Reviews')
+
+
+@receiver(post_save, sender=Room)
+def set_room_is_booked(sender, instance, **kwargs):
+    # Отключаем сигнал post_save временно
+    post_save.disconnect(set_room_is_booked, sender=Room)
+    if instance.booking.exists():
+        instance.is_booked = True
+    else:
+        instance.is_booked = False
+    instance.save()
+
+    # Подключаем сигнал post_save обратно
+    post_save.connect(set_room_is_booked, sender=Room)
+
+
+@receiver(post_save, sender=Room)
+def create_room_photos(sender, instance, created, **kwargs):
+    if created and hasattr(instance, 'room_photos'):
+        for image in instance.room_photos:
+            # Создаем объект RoomPhotos и сохраняем фото
+            RoomPhotos.objects.create(room=instance, image=image)
