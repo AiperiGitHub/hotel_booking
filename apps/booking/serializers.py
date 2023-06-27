@@ -10,9 +10,10 @@ class BookingSerializer(serializers.ModelSerializer):
     room = serializers.IntegerField()
     checkin_date = serializers.DateField()
     checkout_date = serializers.DateField()
+    created_at = serializers.DateTimeField()
 
     class Meta:
         model = Booking
-        fields = ['id', 'user', 'room', 'checkin_date', 'checkout_date', ]
+        fields = ['id', 'user', 'room', 'checkin_date', 'checkout_date', 'created_at', ]
 
 
